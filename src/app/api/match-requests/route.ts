@@ -11,7 +11,8 @@ const createMatchRequestSchema = z.object({
   time: z.string(),
   city: z.string(),
   venue: z.string().optional(),
-  matchType: z.enum(["FOOTBALL", "FUTSAL"]),
+  futsalLocation: z.string().min(1, "Futsal location is required"),
+  image: z.string().optional(),
   skillLevel: z.enum(["BEGINNER", "INTERMEDIATE", "ADVANCED", "PROFESSIONAL"]).optional(),
   description: z.string().optional(),
 })
@@ -63,7 +64,9 @@ export async function POST(request: NextRequest) {
         time: validatedData.time,
         city: validatedData.city,
         venue: validatedData.venue,
-        matchType: validatedData.matchType,
+        futsalLocation: validatedData.futsalLocation,
+        image: validatedData.image,
+        matchType: "FUTSAL",
         skillLevel: validatedData.skillLevel,
         status: "OPEN",
       },
@@ -76,6 +79,9 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json(matchRequest, { status: 201 })
   } catch (error) {
+    if (error instanceof z.ZodError) {
+      return NextResponse.json({ error: error.errors[0]?.message || "Invalid request data" }, { status: 400 })
+    }
     console.error("Error creating match request:", error)
     return NextResponse.json({ error: "Failed to create match request" }, { status: 500 })
   }
@@ -140,16 +146,26 @@ export async function GET(request: NextRequest) {
           }
         },
         createdBy: true,
+        applications: {
+          where: { applyingTeamId: userTeam.teamId },
+          select: { id: true, status: true },
+        },
       },
       orderBy: {
         createdAt: "desc"
       }
     })
 
+    const matchRequestsWithFlags = matchRequests.map((mr) => ({
+      ...mr,
+      hasApplied: mr.applications.length > 0,
+      myApplicationStatus: mr.applications[0]?.status ?? null,
+    }))
+
     const total = await prisma.matchRequest.count({ where })
 
     return NextResponse.json({
-      matchRequests,
+      matchRequests: matchRequestsWithFlags,
       pagination: {
         total,
         limit,

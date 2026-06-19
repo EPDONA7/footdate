@@ -15,6 +15,7 @@ export default function CreateMatchPage() {
   const [teams, setTeams] = useState<any[]>([])
   const [allTeams, setAllTeams] = useState<any[]>([])
   const [userTeam, setUserTeam] = useState<any>(null)
+  const [uploadingImage, setUploadingImage] = useState(false)
   const [formData, setFormData] = useState({
     requestingTeamId: "",
     targetTeamId: "",
@@ -22,7 +23,8 @@ export default function CreateMatchPage() {
     time: "",
     city: "",
     venue: "",
-    matchType: "FOOTBALL" as "FOOTBALL" | "FUTSAL",
+    futsalLocation: "",
+    image: "",
     skillLevel: "",
     description: "",
   })
@@ -60,8 +62,37 @@ export default function CreateMatchPage() {
     }
   }
 
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    setUploadingImage(true)
+    const uploadData = new FormData()
+    uploadData.append("file", file)
+    uploadData.append("folder", "match-images")
+
+    try {
+      const response = await fetch("/api/upload", { method: "POST", body: uploadData })
+      const data = await response.json()
+      if (response.ok) {
+        setFormData((prev) => ({ ...prev, image: data.url }))
+      } else {
+        alert(data.error || "Failed to upload image")
+      }
+    } catch (error) {
+      console.error("Error uploading image:", error)
+      alert("Failed to upload image")
+    } finally {
+      setUploadingImage(false)
+    }
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    if (!formData.futsalLocation.trim()) {
+      alert("Futsal location is required")
+      return
+    }
     setLoading(true)
 
     try {
@@ -241,19 +272,33 @@ export default function CreateMatchPage() {
                   />
                 </div>
 
+                <div className="space-y-2">
+                  <Label htmlFor="futsalLocation">Futsal Location *</Label>
+                  <Input
+                    id="futsalLocation"
+                    placeholder="Enter the futsal location"
+                    value={formData.futsalLocation}
+                    onChange={(e) => setFormData({ ...formData, futsalLocation: e.target.value })}
+                    required
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="matchImage">Match Image</Label>
+                  <Input
+                    id="matchImage"
+                    type="file"
+                    accept="image/*"
+                    onChange={handleImageUpload}
+                    disabled={uploadingImage}
+                  />
+                  {uploadingImage && <p className="text-xs text-muted-foreground">Uploading image...</p>}
+                  {formData.image && (
+                    <img src={formData.image} alt="Match" className="mt-2 h-32 w-full rounded-md object-cover" />
+                  )}
+                </div>
+
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="matchType">Match Type *</Label>
-                    <Select value={formData.matchType} onValueChange={(value: "FOOTBALL" | "FUTSAL") => setFormData({ ...formData, matchType: value })}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select match type" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="FOOTBALL">Football</SelectItem>
-                        <SelectItem value="FUTSAL">Futsal</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
                   <div className="space-y-2">
                     <Label htmlFor="skillLevel">Skill Level</Label>
                     <Select value={formData.skillLevel} onValueChange={(value) => setFormData({ ...formData, skillLevel: value })}>
@@ -268,6 +313,7 @@ export default function CreateMatchPage() {
                       </SelectContent>
                     </Select>
                   </div>
+                  <div className="hidden md:block" />
                 </div>
 
                 <Button type="submit" className="w-full" disabled={loading}>

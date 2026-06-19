@@ -4,12 +4,12 @@ import { getCurrentUser } from "@/lib/clerk"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
 import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Users, Calendar, Settings, Trophy, UserPlus, Trash2, Crown, Shield } from "lucide-react"
+import { Users, Calendar, Settings, Trophy, UserPlus, Trash2, Crown, Shield, Inbox } from "lucide-react"
 import Link from "next/link"
+import { TeamSettingsForm } from "@/components/team-settings-form"
 
 interface TeamManagePageProps {
   params: {
@@ -218,12 +218,15 @@ export default async function TeamManagePage({ params }: TeamManagePageProps) {
               <Card>
                 <CardHeader>
                   <CardTitle>Pending Match Requests</CardTitle>
-                  <CardDescription>Incoming and outgoing match requests</CardDescription>
+                  <CardDescription>Review teams applying to your match requests</CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <div className="text-center py-8 text-muted-foreground">
-                    No pending match requests
-                  </div>
+                  <Link href="/match-finder/applications">
+                    <Button variant="outline" className="w-full">
+                      <Inbox className="mr-2 h-4 w-4" />
+                      View Match Applications
+                    </Button>
+                  </Link>
                 </CardContent>
               </Card>
             </div>
@@ -238,30 +241,14 @@ export default async function TeamManagePage({ params }: TeamManagePageProps) {
                   <CardDescription>Update your team information</CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <form action={`/api/teams/${team.id}/settings`} method="PUT" className="space-y-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="team-name">Team Name</Label>
-                      <Input id="team-name" name="name" defaultValue={team.name} required />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="team-description">Description</Label>
-                      <Input id="team-description" name="description" defaultValue={team.description || ''} />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="team-city">City</Label>
-                      <Input id="team-city" name="city" defaultValue={team.city} required />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="team-capacity">Team Capacity</Label>
-                      <Input id="team-capacity" name="capacity" type="number" defaultValue={team.capacity} min="5" max="50" required />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="team-logo">Team Logo</Label>
-                      <Input id="team-logo" type="file" accept="image/*" disabled />
-                      <p className="text-xs text-muted-foreground">Logo upload coming soon</p>
-                    </div>
-                    <Button type="submit">Save Changes</Button>
-                  </form>
+                  <TeamSettingsForm
+                    teamId={team.id}
+                    initialName={team.name}
+                    initialDescription={team.description || ''}
+                    initialCity={team.city}
+                    initialCapacity={team.capacity}
+                    initialLogo={team.logo}
+                  />
                 </CardContent>
               </Card>
 
