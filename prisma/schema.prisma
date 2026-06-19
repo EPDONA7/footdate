@@ -57,7 +57,7 @@ enum NotificationType {
   TEAM_INVITATION
   INVITATION_ACCEPTED
   INVITATION_DECLINED
-  MATCH_INVITATION
+  MATCH_INVITATION // This will now represent a *new application* to a match request
   MATCH_ACCEPTED
   MATCH_REJECTED
   MATCH_REMINDER
@@ -66,6 +66,9 @@ enum NotificationType {
   TEAM_ANNOUNCEMENT
   NEW_MESSAGE
   NEW_FOLLOWER
+  MATCH_APPLICATION_RECEIVED // For creator when someone applies to their request
+  MATCH_APPLICATION_ACCEPTED // For applicant when their application is accepted
+  MATCH_APPLICATION_REJECTED // For applicant when their application is rejected
 }
 
 enum InvitationStatus {

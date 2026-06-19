@@ -74,6 +74,16 @@ export async function POST(request: NextRequest) {
       }
     })
 
+    // Notify the target team if it's a specific request
+    if (matchRequest.targetTeamId) {
+      // This is a placeholder for actual notification logic.
+      // In a real application, you would create a notification entry in the database
+      // and potentially trigger a real-time notification (e.g., via websockets).
+      console.log(
+        `Notification: Team ${matchRequest.requestingTeam.name} sent a match request to ${matchRequest.targetTeam?.name}`
+      );
+    }
+
     return NextResponse.json(matchRequest, { status: 201 })
   } catch (error) {
     console.error("Error creating match request:", error)
