@@ -5,8 +5,9 @@ generator client {
 datasource db {
   provider  = "postgresql"
   url       = env("DATABASE_URL")
-  directUrl = env("DIRECT_URL") 
+  directUrl = env("DIRECT_URL")
 }
+
 enum UserRole {
   USER
   ADMIN
@@ -34,6 +35,17 @@ enum MatchRequestStatus {
   REJECTED
 }
 
+enum MatchApplicationStatus {
+  PENDING
+  ACCEPTED
+  REJECTED
+}
+
+enum SpectatorStatus {
+  INTERESTED
+  GOING
+}
+
 enum MatchType {
   FOOTBALL
   FUTSAL
@@ -57,7 +69,8 @@ enum NotificationType {
   TEAM_INVITATION
   INVITATION_ACCEPTED
   INVITATION_DECLINED
-  MATCH_INVITATION // This will now represent a *new application* to a match request
+  MATCH_INVITATION
+  MATCH_APPLICATION
   MATCH_ACCEPTED
   MATCH_REJECTED
   MATCH_REMINDER
@@ -85,10 +98,10 @@ enum DisputeStatus {
 }
 
 model User {
-  id                String    @id @default(cuid())
-  clerkId           String    @unique
-  username          String    @unique
-  email             String    @unique
+  id                String      @id @default(cuid())
+  clerkId           String      @unique
+  username          String      @unique
+  email             String      @unique
   name              String?
   bio               String?
   age               Int?
@@ -97,45 +110,47 @@ model User {
   primaryPosition   Position?
   secondaryPosition Position?
   skillLevel        SkillLevel?
-  
+
   // Statistics
-  matchesPlayed     Int       @default(0)
-  wins              Int       @default(0)
-  losses            Int       @default(0)
-  draws             Int       @default(0)
-  goals             Int       @default(0)
-  assists           Int       @default(0)
-  mvpAwards         Int       @default(0)
-  playerRating      Float     @default(0)
-  
+  matchesPlayed Int   @default(0)
+  wins          Int   @default(0)
+  losses        Int   @default(0)
+  draws         Int   @default(0)
+  goals         Int   @default(0)
+  assists       Int   @default(0)
+  mvpAwards     Int   @default(0)
+  playerRating  Float @default(0)
+
   // Availability
-  availableDays     String[]  // Array of days: ["Monday", "Tuesday", etc.]
-  preferredTimes    String[]  // Array of time slots
-  
-  role              UserRole  @default(USER)
-  createdAt         DateTime  @default(now())
-  updatedAt         DateTime  @updatedAt
-  
+  availableDays  String[] // Array of days: ["Monday", "Tuesday", etc.]
+  preferredTimes String[] // Array of time slots
+
+  role      UserRole @default(USER)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
   // Relations
-  teamMemberships   TeamMember[]
-  teamInvitations   TeamInvitation[]  @relation("InvitedUser")
-  sentInvitations   TeamInvitation[]  @relation("InvitingTeam")
-  matchParticipants MatchParticipant[]
-  createdMatches    Match[]           @relation("MatchCreator")
-  createdMatchRequests MatchRequest[] @relation("MatchRequestCreator")
-  notifications     Notification[]
-  posts             Post[]
-  comments          Comment[]
-  likes             Like[]
-  sentMessages      Message[]        @relation("SentMessages")
-  receivedMessages  Message[]        @relation("ReceivedMessages")
-  conversations1    Conversation[]   @relation("User1")
-  conversations2    Conversation[]   @relation("User2")
-  followers         Follow[]         @relation("Following")
-  following         Follow[]         @relation("Follower")
-  disputeResolutions MatchDispute[]  @relation("ResolvedBy")
-  reportedDisputes  MatchDispute[]  @relation("ReportedBy")
-  
+  teamMemberships      TeamMember[]
+  teamInvitations      TeamInvitation[]   @relation("InvitedUser")
+  sentInvitations      TeamInvitation[]   @relation("InvitingTeam")
+  matchParticipants    MatchParticipant[]
+  createdMatches       Match[]            @relation("MatchCreator")
+  createdMatchRequests MatchRequest[]     @relation("MatchRequestCreator")
+  matchApplications    MatchApplication[] @relation("MatchApplicant")
+  spectating           MatchSpectator[]
+  notifications        Notification[]
+  posts                Post[]
+  comments             Comment[]
+  likes                Like[]
+  sentMessages         Message[]          @relation("SentMessages")
+  receivedMessages     Message[]          @relation("ReceivedMessages")
+  conversations1       Conversation[]     @relation("User1")
+  conversations2       Conversation[]     @relation("User2")
+  followers            Follow[]           @relation("Following")
+  following            Follow[]           @relation("Follower")
+  disputeResolutions   MatchDispute[]     @relation("ResolvedBy")
+  reportedDisputes     MatchDispute[]     @relation("ReportedBy")
+
   @@index([username])
   @@index([city])
   @@index([skillLevel])
@@ -143,48 +158,49 @@ model User {
 }
 
 model Team {
-  id          String   @id @default(cuid())
+  id          String  @id @default(cuid())
   name        String
   description String?
   logo        String?
   city        String
-  capacity    Int      @default(20)
-  
+  capacity    Int     @default(20)
+
   // Statistics
-  matchesPlayed Int     @default(0)
-  wins          Int     @default(0)
-  losses        Int     @default(0)
-  draws         Int     @default(0)
-  goalsFor      Int     @default(0)
-  goalsAgainst  Int     @default(0)
-  points        Int     @default(0)
-  
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
-  
+  matchesPlayed Int @default(0)
+  wins          Int @default(0)
+  losses        Int @default(0)
+  draws         Int @default(0)
+  goalsFor      Int @default(0)
+  goalsAgainst  Int @default(0)
+  points        Int @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
   // Relations
-  members      TeamMember[]
-  invitations  TeamInvitation[]
-  homeMatches  Match[]  @relation("HomeTeam")
-  awayMatches  Match[]  @relation("AwayTeam")
-  requestingMatchRequests MatchRequest[] @relation("RequestingTeam")
-  targetMatchRequests MatchRequest[] @relation("TargetTeam")
-  posts        Post[]
-  
+  members                 TeamMember[]
+  invitations             TeamInvitation[]
+  homeMatches             Match[]            @relation("HomeTeam")
+  awayMatches             Match[]            @relation("AwayTeam")
+  requestingMatchRequests MatchRequest[]     @relation("RequestingTeam")
+  targetMatchRequests     MatchRequest[]     @relation("TargetTeam")
+  matchApplications       MatchApplication[] @relation("ApplyingTeam")
+  posts                   Post[]
+
   @@index([city])
   @@index([name])
 }
 
 model TeamMember {
-  id        String   @id @default(cuid())
-  teamId    String
-  userId    String
-  role      TeamRole @default(PLAYER)
-  joinedAt  DateTime @default(now())
-  
-  team      Team     @relation(fields: [teamId], references: [id], onDelete: Cascade)
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  
+  id       String   @id @default(cuid())
+  teamId   String
+  userId   String
+  role     TeamRole @default(PLAYER)
+  joinedAt DateTime @default(now())
+
+  team Team @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
   @@unique([teamId, userId])
   @@index([teamId])
   @@index([userId])
@@ -199,9 +215,9 @@ model TeamInvitation {
   createdAt   DateTime         @default(now())
   respondedAt DateTime?
 
-  team        Team             @relation(fields: [teamId], references: [id], onDelete: Cascade)
-  user        User             @relation("InvitedUser", fields: [userId], references: [id], onDelete: Cascade)
-  invitingUser User            @relation("InvitingTeam", fields: [invitedBy], references: [id])
+  team         Team @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  user         User @relation("InvitedUser", fields: [userId], references: [id], onDelete: Cascade)
+  invitingUser User @relation("InvitingTeam", fields: [invitedBy], references: [id])
 
   @@index([teamId])
   @@index([userId])
@@ -209,45 +225,49 @@ model TeamInvitation {
 }
 
 model Match {
-  id              String      @id @default(cuid())
-  homeTeamId      String
-  awayTeamId      String
-  createdById     String?
-  
+  id          String  @id @default(cuid())
+  homeTeamId  String
+  awayTeamId  String
+  createdById String?
+
   // Match scheduling
-  date            DateTime
-  time            String
-  city            String
-  venue           String?
-  
+  date           DateTime
+  time           String
+  city           String
+  venue          String?
+  futsalLocation String?
+  image          String?
+
   // Match details
-  matchType       MatchType
-  skillLevel      SkillLevel?
-  notes           String?
-  status          MatchStatus @default(SCHEDULED)
-  
+  matchType         MatchType   @default(FUTSAL)
+  skillLevel        SkillLevel?
+  notes             String?
+  status            MatchStatus @default(SCHEDULED)
+  openForSpectators Boolean     @default(true)
+
   // Scores
-  homeTeamScore   Int?
-  awayTeamScore   Int?
-  
+  homeTeamScore Int?
+  awayTeamScore Int?
+
   // Score submission
-  homeScoreSubmitted   Boolean @default(false)
-  awayScoreSubmitted   Boolean @default(false)
+  homeScoreSubmitted   Boolean   @default(false)
+  awayScoreSubmitted   Boolean   @default(false)
   homeScoreSubmittedAt DateTime?
   awayScoreSubmittedAt DateTime?
-  
-  createdAt       DateTime    @default(now())
-  updatedAt       DateTime    @updatedAt
-  
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
   // Relations
-  homeTeam        Team        @relation("HomeTeam", fields: [homeTeamId], references: [id])
-  awayTeam        Team        @relation("AwayTeam", fields: [awayTeamId], references: [id])
-  createdBy       User?       @relation("MatchCreator", fields: [createdById], references: [id])
-  participants    MatchParticipant[]
-  results         MatchResult[]
-  dispute         MatchDispute?
-  posts           Post[]
-  
+  homeTeam     Team               @relation("HomeTeam", fields: [homeTeamId], references: [id])
+  awayTeam     Team               @relation("AwayTeam", fields: [awayTeamId], references: [id])
+  createdBy    User?              @relation("MatchCreator", fields: [createdById], references: [id])
+  participants MatchParticipant[]
+  results      MatchResult[]
+  dispute      MatchDispute?
+  posts        Post[]
+  spectators   MatchSpectator[]
+
   @@index([date])
   @@index([city])
   @@index([status])
@@ -256,65 +276,103 @@ model Match {
 }
 
 model MatchParticipant {
-  id        String   @id @default(cuid())
-  matchId   String
-  userId    String
-  goals     Int      @default(0)
-  assists   Int      @default(0)
-  isMvp     Boolean  @default(false)
-  
-  match     Match    @relation(fields: [matchId], references: [id], onDelete: Cascade)
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  
+  id      String  @id @default(cuid())
+  matchId String
+  userId  String
+  goals   Int     @default(0)
+  assists Int     @default(0)
+  isMvp   Boolean @default(false)
+
+  match Match @relation(fields: [matchId], references: [id], onDelete: Cascade)
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+
   @@unique([matchId, userId])
   @@index([matchId])
   @@index([userId])
 }
 
 model MatchResult {
-  id                  String   @id @default(cuid())
-  matchId             String
-  submittedByTeamId   String
-  homeScore           Int
-  awayScore           Int
-  status              String   @default("PENDING")
-  submittedAt         DateTime @default(now())
-  
-  match               Match    @relation(fields: [matchId], references: [id], onDelete: Cascade)
-  
+  id                String   @id @default(cuid())
+  matchId           String
+  submittedByTeamId String
+  homeScore         Int
+  awayScore         Int
+  status            String   @default("PENDING")
+  submittedAt       DateTime @default(now())
+
+  match Match @relation(fields: [matchId], references: [id], onDelete: Cascade)
+
   @@index([matchId])
   @@index([submittedByTeamId])
 }
 
 model MatchRequest {
-  id              String              @id @default(cuid())
+  id               String  @id @default(cuid())
   requestingTeamId String
-  targetTeamId    String?
-  createdById     String
-  description     String?
+  targetTeamId     String?
+  createdById      String
+  description      String?
 
   // Match details
-  date            DateTime
-  time            String
-  city            String
-  venue           String?
-  matchType       MatchType
-  skillLevel      SkillLevel?
-  status          MatchRequestStatus @default(OPEN)
+  date           DateTime
+  time           String
+  city           String
+  venue          String?
+  futsalLocation String?
+  image          String?
+  matchType      MatchType          @default(FUTSAL)
+  skillLevel     SkillLevel?
+  status         MatchRequestStatus @default(OPEN)
 
-  createdAt       DateTime            @default(now())
-  updatedAt       DateTime            @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   // Relations
-  requestingTeam  Team                @relation("RequestingTeam", fields: [requestingTeamId], references: [id], onDelete: Cascade)
-  targetTeam      Team?               @relation("TargetTeam", fields: [targetTeamId], references: [id], onDelete: Cascade)
-  createdBy       User                @relation("MatchRequestCreator", fields: [createdById], references: [id])
+  requestingTeam Team               @relation("RequestingTeam", fields: [requestingTeamId], references: [id], onDelete: Cascade)
+  targetTeam     Team?              @relation("TargetTeam", fields: [targetTeamId], references: [id], onDelete: Cascade)
+  createdBy      User               @relation("MatchRequestCreator", fields: [createdById], references: [id])
+  applications   MatchApplication[]
 
   @@index([requestingTeamId])
   @@index([targetTeamId])
   @@index([status])
   @@index([date])
   @@index([city])
+}
+
+model MatchApplication {
+  id             String                 @id @default(cuid())
+  matchRequestId String
+  applyingTeamId String
+  appliedById    String
+  status         MatchApplicationStatus @default(PENDING)
+  message        String?
+  createdAt      DateTime               @default(now())
+  updatedAt      DateTime               @updatedAt
+
+  matchRequest MatchRequest @relation(fields: [matchRequestId], references: [id], onDelete: Cascade)
+  applyingTeam Team         @relation("ApplyingTeam", fields: [applyingTeamId], references: [id], onDelete: Cascade)
+  appliedBy    User         @relation("MatchApplicant", fields: [appliedById], references: [id])
+
+  @@unique([matchRequestId, applyingTeamId])
+  @@index([matchRequestId])
+  @@index([applyingTeamId])
+  @@index([status])
+}
+
+model MatchSpectator {
+  id        String          @id @default(cuid())
+  matchId   String
+  userId    String
+  status    SpectatorStatus @default(INTERESTED)
+  createdAt DateTime        @default(now())
+
+  match Match @relation(fields: [matchId], references: [id], onDelete: Cascade)
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([matchId, userId])
+  @@index([matchId])
+  @@index([userId])
 }
 
 model MatchDispute {
@@ -327,11 +385,11 @@ model MatchDispute {
   createdAt       DateTime      @default(now())
   resolvedAt      DateTime?
   resolvedById    String?
-  
-  match           Match         @relation(fields: [matchId], references: [id], onDelete: Cascade)
-  reportedBy      User          @relation("ReportedBy", fields: [reportedById], references: [id])
-  resolvedBy      User?         @relation("ResolvedBy", fields: [resolvedById], references: [id])
-  
+
+  match      Match @relation(fields: [matchId], references: [id], onDelete: Cascade)
+  reportedBy User  @relation("ReportedBy", fields: [reportedById], references: [id])
+  resolvedBy User? @relation("ResolvedBy", fields: [resolvedById], references: [id])
+
   @@index([matchId])
   @@index([reportedById])
   @@index([status])
@@ -346,9 +404,9 @@ model Notification {
   link      String?
   read      Boolean          @default(false)
   createdAt DateTime         @default(now())
-  
-  user      User             @relation(fields: [userId], references: [id], onDelete: Cascade)
-  
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
   @@index([userId])
   @@index([read])
   @@index([createdAt])
@@ -364,13 +422,13 @@ model Post {
   type      String   @default("general") // general, match_result, announcement, achievement
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-  
-  user      User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
-  team      Team?    @relation(fields: [teamId], references: [id], onDelete: SetNull)
-  match     Match?   @relation(fields: [matchId], references: [id], onDelete: SetNull)
-  comments  Comment[]
-  likes     Like[]
-  
+
+  user     User?     @relation(fields: [userId], references: [id], onDelete: SetNull)
+  team     Team?     @relation(fields: [teamId], references: [id], onDelete: SetNull)
+  match    Match?    @relation(fields: [matchId], references: [id], onDelete: SetNull)
+  comments Comment[]
+  likes    Like[]
+
   @@index([userId])
   @@index([teamId])
   @@index([matchId])
@@ -384,10 +442,10 @@ model Comment {
   content   String
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-  
-  post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  
+
+  post Post @relation(fields: [postId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
   @@index([postId])
   @@index([userId])
 }
@@ -397,10 +455,10 @@ model Like {
   postId    String
   userId    String
   createdAt DateTime @default(now())
-  
-  post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  
+
+  post Post @relation(fields: [postId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
   @@unique([postId, userId])
   @@index([postId])
   @@index([userId])
@@ -415,31 +473,31 @@ model Conversation {
   matchId   String?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-  
-  user1     User     @relation("User1", fields: [user1Id], references: [id], onDelete: Cascade)
-  user2     User     @relation("User2", fields: [user2Id], references: [id], onDelete: Cascade)
-  messages  Message[]
-  
+
+  user1    User      @relation("User1", fields: [user1Id], references: [id], onDelete: Cascade)
+  user2    User      @relation("User2", fields: [user2Id], references: [id], onDelete: Cascade)
+  messages Message[]
+
   @@unique([user1Id, user2Id, type])
   @@index([user1Id])
   @@index([user2Id])
 }
 
 model Message {
-  id             String        @id @default(cuid())
+  id             String    @id @default(cuid())
   conversationId String
   senderId       String
   receiverId     String?
   content        String
   mediaUrl       String?
-  read           Boolean       @default(false)
+  read           Boolean   @default(false)
   readAt         DateTime?
-  createdAt      DateTime      @default(now())
-  
-  conversation   Conversation  @relation(fields: [conversationId], references: [id], onDelete: Cascade)
-  sender         User          @relation("SentMessages", fields: [senderId], references: [id])
-  receiver       User?         @relation("ReceivedMessages", fields: [receiverId], references: [id])
-  
+  createdAt      DateTime  @default(now())
+
+  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  sender       User         @relation("SentMessages", fields: [senderId], references: [id])
+  receiver     User?        @relation("ReceivedMessages", fields: [receiverId], references: [id])
+
   @@index([conversationId])
   @@index([senderId])
   @@index([receiverId])
@@ -451,10 +509,10 @@ model Follow {
   followerId  String
   followingId String
   createdAt   DateTime @default(now())
-  
-  follower    User     @relation("Following", fields: [followerId], references: [id], onDelete: Cascade)
-  following   User     @relation("Follower", fields: [followingId], references: [id], onDelete: Cascade)
-  
+
+  follower  User @relation("Following", fields: [followerId], references: [id], onDelete: Cascade)
+  following User @relation("Follower", fields: [followingId], references: [id], onDelete: Cascade)
+
   @@unique([followerId, followingId])
   @@index([followerId])
   @@index([followingId])

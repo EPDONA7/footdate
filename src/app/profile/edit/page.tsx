@@ -129,21 +129,22 @@ export default function EditProfilePage() {
     const file = e.target.files?.[0]
     if (!file) return
 
-    const formData = new FormData()
-    formData.append("file", file)
+    const uploadData = new FormData()
+    uploadData.append("file", file)
+    uploadData.append("folder", "profile-photos")
 
     try {
       const response = await fetch("/api/upload", {
         method: "POST",
-        body: formData,
+        body: uploadData,
       })
 
+      const data = await response.json()
       if (response.ok) {
-        const data = await response.json()
-        setFormData((prev) => ({ ...prev, profilePhoto: data.secure_url }))
-        alert("Photo uploaded successfully!")
+        setFormData((prev) => ({ ...prev, profilePhoto: data.url }))
+        alert("Photo uploaded! Click Save Changes to keep it.")
       } else {
-        alert("Failed to upload photo")
+        alert(data.error || "Failed to upload photo")
       }
     } catch (error) {
       console.error("Error uploading photo:", error)

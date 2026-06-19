@@ -1,6 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/clerk";
 import { prisma } from "@/lib/prisma";
+import { z } from "zod";
+
+const applySchema = z.object({
+  teamId: z.string(),
+  message: z.string().max(500).optional(),
+});
 
 interface MatchRequestContext {
   params: {
@@ -16,7 +22,13 @@ export async function POST(request: NextRequest, { params }: MatchRequestContext
     }
 
     const { id } = params;
-    const { teamId } = await request.json(); // The team applying to the match request
+    let body: unknown = {};
+    try {
+      body = await request.json();
+    } catch {
+      body = {};
+    }
+    const { teamId, message } = applySchema.parse(body);
 
     // Verify the team exists and the user is a member/manager of it
     const teamMember = await prisma.teamMember.findFirst({
@@ -25,6 +37,7 @@ export async function POST(request: NextRequest, { params }: MatchRequestContext
         userId: user.id,
         OR: [{ role: "OWNER" }, { role: "MANAGER" }],
       },
+      include: { team: true }
     });
 
     if (!teamMember) {
@@ -47,56 +60,58 @@ export async function POST(request: NextRequest, { params }: MatchRequestContext
       return NextResponse.json({ error: "This match request is not open for applications." }, { status: 400 });
     }
 
+    // Only open random requests can be applied to
+    if (matchRequest.targetTeamId) {
+      return NextResponse.json({ error: "This is a specific invitation, not an open request" }, { status: 400 });
+    }
+
     // Prevent a team from applying to its own request
     if (matchRequest.requestingTeamId === teamId) {
       return NextResponse.json({ error: "Cannot apply to your own match request." }, { status: 400 });
     }
 
-    const existingApplication = await prisma.matchRequest.findFirst({
+    // Prevent duplicate applications
+    const existing = await prisma.matchApplication.findUnique({
       where: {
-        id: id,
-        targetTeamId: teamId,
-        status: "PENDING",
-      },
+        matchRequestId_applyingTeamId: {
+          matchRequestId: matchRequest.id,
+          applyingTeamId: teamId,
+        }
+      }
     });
 
-    if (existingApplication) {
+    if (existing) {
       return NextResponse.json({ error: "Your team has already applied to this match request." }, { status: 400 });
     }
 
-    // We'll allow multiple applications but only one can be accepted. The `targetTeamId` will be set when the creator accepts.
-    // If we want to strictly enforce one pending application at a time, we'd need a separate model for applications.
-
-    // For now, let's just create a notification for the creator.
-    // The `targetTeamId` will be set when the creator ACCEPTS an application.
-
-    // Fetch the requesting team's name for the notification
-    const applyingTeam = await prisma.team.findUnique({
-      where: { id: teamId },
-      select: { name: true },
+    const application = await prisma.matchApplication.create({
+      data: {
+        matchRequestId: matchRequest.id,
+        applyingTeamId: teamId,
+        appliedById: user.id,
+        message: message || null,
+      },
+      include: {
+        applyingTeam: true,
+      }
     });
-
-    if (!applyingTeam) {
-      return NextResponse.json({ error: "Applying team not found." }, { status: 404 });
-    }
-
-    // Create a new MatchApplication entry (or update if one exists and status allows)
-    // For now, we will create a notification, and the MatchRequest status will be updated by the creator.
 
     // Notify the match request creator about the new application
     await prisma.notification.create({
       data: {
         userId: matchRequest.createdById,
         type: "MATCH_APPLICATION_RECEIVED",
-        title: `New Match Application for your request!`,
-        message: `${applyingTeam.name} has applied to your match request for ${matchRequest.date.toDateString()}.`,
-        link: `/dashboard/match-requests/${id}`,
+        title: "New Match Application",
+        message: `${teamMember.team.name} applied to your match request in ${matchRequest.city}`,
+        link: `/match-finder/applications`,
       },
     });
 
-    // Return the original match request, as its status isn't changing on application
-    return NextResponse.json(matchRequest, { status: 200 });
+    return NextResponse.json(application, { status: 201 });
   } catch (error) {
+    if (error instanceof z.ZodError) {
+      return NextResponse.json({ error: "Invalid request data" }, { status: 400 });
+    }
     console.error("Error applying to match request:", error);
     return NextResponse.json({ error: "Failed to apply to match request." }, { status: 500 });
   }
