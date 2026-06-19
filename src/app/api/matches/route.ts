@@ -10,9 +10,11 @@ const createMatchSchema = z.object({
   time: z.string(),
   city: z.string(),
   venue: z.string().optional(),
-  matchType: z.enum(["FOOTBALL", "FUTSAL"]),
+  futsalLocation: z.string().optional(),
+  matchType: z.enum(["FOOTBALL", "FUTSAL"]).optional(),
   skillLevel: z.enum(["BEGINNER", "INTERMEDIATE", "ADVANCED", "PROFESSIONAL"]).optional(),
   notes: z.string().optional(),
+  openForSpectators: z.boolean().optional(),
 })
 
 export async function POST(request: NextRequest) {
@@ -60,10 +62,12 @@ export async function POST(request: NextRequest) {
         time: validatedData.time,
         city: validatedData.city,
         venue: validatedData.venue,
-        matchType: validatedData.matchType,
+        futsalLocation: validatedData.futsalLocation,
+        matchType: validatedData.matchType ?? "FUTSAL",
         skillLevel: validatedData.skillLevel,
         notes: validatedData.notes,
         status: "SCHEDULED",
+        openForSpectators: validatedData.openForSpectators ?? true,
         createdById: user.id
       },
       include: {

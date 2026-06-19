@@ -8,6 +8,7 @@ const settingsSchema = z.object({
   description: z.string().optional(),
   city: z.string().min(2),
   capacity: z.number().min(5).max(50),
+  logo: z.string().optional(),
 })
 
 export async function PUT(
@@ -48,11 +49,15 @@ export async function PUT(
         description: validatedData.description,
         city: validatedData.city,
         capacity: validatedData.capacity,
+        ...(validatedData.logo ? { logo: validatedData.logo } : {}),
       }
     })
 
     return NextResponse.json(updatedTeam)
   } catch (error) {
+    if (error instanceof z.ZodError) {
+      return NextResponse.json({ error: error.errors[0]?.message || "Invalid data" }, { status: 400 })
+    }
     console.error("Error updating team:", error)
     return NextResponse.json({ error: "Failed to update team" }, { status: 500 })
   }
