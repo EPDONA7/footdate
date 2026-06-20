@@ -17,11 +17,13 @@ export default function MatchFinderPage() {
   const [randomRequests, setRandomRequests] = useState<any[]>([])
   const [specificRequests, setSpecificRequests] = useState<any[]>([])
   const [watchGames, setWatchGames] = useState<any[]>([])
+  const [userTeam, setUserTeam] = useState<any>(null)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     fetchMatchRequests()
     fetchWatchGames()
+    fetchUserTeam()
   }, [])
 
   const fetchMatchRequests = async () => {
@@ -59,12 +61,31 @@ export default function MatchFinderPage() {
     }
   }
 
+  const fetchUserTeam = async () => {
+    try {
+      const res = await fetch("/api/user/teams")
+      if (res.ok) {
+        const data = await res.json()
+        if (data.length > 0) {
+          setUserTeam(data[0])
+        }
+      }
+    } catch (error) {
+      console.error("Error fetching user team:", error)
+    }
+  }
+
   const handleApply = async (requestId: string) => {
+    if (!userTeam) {
+      alert("You need to be a member of a team to apply for match requests")
+      return
+    }
+
     try {
       const response = await fetch(`/api/match-requests/${requestId}/apply`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({}),
+        body: JSON.stringify({ teamId: userTeam.id }),
       })
 
       if (response.ok) {
@@ -185,10 +206,16 @@ export default function MatchFinderPage() {
               <Button className="flex-1" variant="secondary" disabled>
                 {request.myApplicationStatus === "REJECTED" ? "Application Rejected" : "Applied"}
               </Button>
-            ) : (
+            ) : userTeam ? (
               <Button className="flex-1" onClick={() => handleApply(request.id)}>
-                Apply
+                Apply with {userTeam.name}
               </Button>
+            ) : (
+              <Link href="/team/create" className="flex-1">
+                <Button className="flex-1" variant="outline">
+                  Create Team to Apply
+                </Button>
+              </Link>
             )
           )}
           <Button variant="outline" className="flex-1">

@@ -13,7 +13,7 @@ export async function GET(request: NextRequest) {
       where: {
         userId: user.id,
         role: {
-          in: ["OWNER"]
+          in: ["OWNER", "MANAGER", "CAPTAIN"]
         }
       },
       include: {
@@ -24,6 +24,9 @@ export async function GET(request: NextRequest) {
     const teams = teamMemberships.map((tm: any) => ({
       id: tm.team.id,
       name: tm.team.name,
+      city: tm.team.city,
+      description: tm.team.description,
+      logo: tm.team.logo,
       role: tm.role
     }))
 

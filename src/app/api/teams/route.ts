@@ -76,10 +76,22 @@ export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url)
     const city = searchParams.get("city")
+    const search = searchParams.get("search")
     const limit = parseInt(searchParams.get("limit") || "20")
     const skip = parseInt(searchParams.get("skip") || "0")
 
-    const where = city ? { city } : {}
+    const where: any = {}
+
+    if (city) {
+      where.city = city
+    }
+
+    if (search) {
+      where.OR = [
+        { name: { contains: search, mode: "insensitive" } },
+        { description: { contains: search, mode: "insensitive" } }
+      ]
+    }
 
     const teams = await prisma.team.findMany({
       where,

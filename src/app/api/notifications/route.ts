@@ -10,19 +10,34 @@ export async function GET(request: NextRequest) {
     }
 
     const { searchParams } = new URL(request.url)
-    const limit = parseInt(searchParams.get("limit") || "50")
+    const limit = parseInt(searchParams.get("limit") || "20")
+    const skip = parseInt(searchParams.get("skip") || "0")
 
     const notifications = await prisma.notification.findMany({
       where: { userId: user.id },
       orderBy: { createdAt: "desc" },
       take: limit,
+      skip,
     })
 
     const unreadCount = await prisma.notification.count({
       where: { userId: user.id, read: false },
     })
 
-    return NextResponse.json({ notifications, unreadCount })
+    const total = await prisma.notification.count({
+      where: { userId: user.id },
+    })
+
+    return NextResponse.json({
+      notifications,
+      unreadCount,
+      pagination: {
+        total,
+        limit,
+        skip,
+        hasMore: skip + limit < total
+      }
+    })
   } catch (error) {
     console.error("Error fetching notifications:", error)
     return NextResponse.json({ error: "Failed to fetch notifications" }, { status: 500 })

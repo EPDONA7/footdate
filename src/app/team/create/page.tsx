@@ -82,13 +82,15 @@ export default function CreateTeamPage() {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="description">Description</Label>
-                <Input
+                <Label htmlFor="description">Description (Optional)</Label>
+                <textarea
                   id="description"
                   placeholder="Brief description of your team"
                   value={formData.description}
                   onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                  maxLength={200}
+                  maxLength={500}
+                  rows={3}
+                  className="w-full p-2 border rounded-md"
                 />
               </div>
 

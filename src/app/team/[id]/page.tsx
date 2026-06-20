@@ -7,6 +7,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import { MapPin, Calendar, Trophy, Users, Settings, Shield, Crown } from "lucide-react"
 import Link from "next/link"
+import { revalidatePath } from "next/cache"
 
 interface TeamPageProps {
   params: {
@@ -16,7 +17,10 @@ interface TeamPageProps {
 
 export default async function TeamPage({ params }: TeamPageProps) {
   const user = await getCurrentUser()
-  
+
+  // Revalidate to ensure fresh data
+  revalidatePath(`/team/${params.id}`)
+
   const team = await prisma.team.findUnique({
     where: { id: params.id },
     include: {
@@ -60,7 +64,7 @@ export default async function TeamPage({ params }: TeamPageProps) {
   })
 
   if (!team) {
-    notFound()
+    redirect('/dashboard')
   }
 
   const member = user && team.members.find(m => m.userId === user.id)

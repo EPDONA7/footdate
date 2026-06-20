@@ -5,8 +5,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { Calendar, Users, Trophy, Bell, MessageSquare, Plus, UserPlus } from "lucide-react"
+import { Calendar, Users, Trophy, Bell, MessageSquare, Plus, UserPlus, Shield } from "lucide-react"
 import Link from "next/link"
+import { DashboardChatWidget } from "@/components/dashboard-chat-widget"
 
 export default async function DashboardPage() {
   const user = await syncUserWithClerk()
@@ -43,6 +44,37 @@ export default async function DashboardPage() {
   const recentNotifications = await prisma.notification.findMany({
     where: { userId: user.id },
     orderBy: { createdAt: "desc" },
+    take: 5
+  })
+
+  // Fetch upcoming matches (visible to all users)
+  const upcomingMatches = await prisma.match.findMany({
+    where: {
+      status: {
+        in: ['SCHEDULED', 'PENDING_CONFIRMATION']
+      }
+    },
+    include: {
+      homeTeam: {
+        select: {
+          id: true,
+          name: true,
+          logo: true,
+          city: true
+        }
+      },
+      awayTeam: {
+        select: {
+          id: true,
+          name: true,
+          logo: true,
+          city: true
+        }
+      }
+    },
+    orderBy: {
+      date: 'asc'
+    },
     take: 5
   })
 
@@ -144,7 +176,7 @@ export default async function DashboardPage() {
         </div>
 
         {/* Quick Actions */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
           <Card>
             <CardHeader>
               <CardTitle>Find a Match</CardTitle>
@@ -162,13 +194,25 @@ export default async function DashboardPage() {
           <Card>
             <CardHeader>
               <CardTitle>Join a Team</CardTitle>
-              <CardDescription>Find teams looking for players</CardDescription>
+              <CardDescription>Find teams looking for players or create your profile</CardDescription>
             </CardHeader>
-            <CardContent>
-              <Link href="/marketplace">
+            <CardContent className="space-y-2">
+              <Link href="/players/browse" className="block">
                 <Button className="w-full" variant="outline">
                   <Users className="mr-2 h-4 w-4" />
-                  Player Marketplace
+                  Browse Players
+                </Button>
+              </Link>
+              <Link href="/teams/browse" className="block">
+                <Button className="w-full" variant="outline">
+                  <Shield className="mr-2 h-4 w-4" />
+                  Browse Teams
+                </Button>
+              </Link>
+              <Link href="/player-profile" className="block">
+                <Button className="w-full" variant="ghost">
+                  <UserPlus className="mr-2 h-4 w-4" />
+                  My Player Profile
                 </Button>
               </Link>
             </CardContent>
@@ -196,6 +240,20 @@ export default async function DashboardPage() {
               )}
             </CardContent>
           </Card>
+          <Card>
+            <CardHeader>
+              <CardTitle>Global Chat</CardTitle>
+              <CardDescription>Chat with players worldwide</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Link href="/global-chat">
+                <Button className="w-full" variant="outline">
+                  <MessageSquare className="mr-2 h-4 w-4" />
+                  Join Chat
+                </Button>
+              </Link>
+            </CardContent>
+          </Card>
         </div>
 
         {/* Recent Activity */}
@@ -203,12 +261,59 @@ export default async function DashboardPage() {
           <Card>
             <CardHeader>
               <CardTitle>Upcoming Matches</CardTitle>
-              <CardDescription>Your scheduled matches</CardDescription>
+              <CardDescription>Scheduled matches on the platform</CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="text-center py-8 text-muted-foreground">
-                No upcoming matches scheduled
-              </div>
+              {upcomingMatches.length === 0 ? (
+                <div className="text-center py-8 text-muted-foreground">
+                  No upcoming matches scheduled
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {upcomingMatches.map((match) => (
+                    <div key={match.id} className="p-4 border rounded-lg">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-4">
+                          <Avatar className="h-10 w-10">
+                            <AvatarImage src={match.homeTeam.logo || undefined} />
+                            <AvatarFallback>
+                              {match.homeTeam.name.charAt(0).toUpperCase()}
+                            </AvatarFallback>
+                          </Avatar>
+                          <div>
+                            <div className="font-semibold">{match.homeTeam.name}</div>
+                            <div className="text-xs text-muted-foreground">{match.homeTeam.city}</div>
+                          </div>
+                        </div>
+                        <div className="text-center">
+                          <div className="font-bold">VS</div>
+                          <div className="text-xs text-muted-foreground">
+                            {new Date(match.date).toLocaleDateString()}
+                          </div>
+                          <div className="text-xs text-muted-foreground">{match.time}</div>
+                        </div>
+                        <div className="flex items-center gap-4">
+                          <div>
+                            <div className="font-semibold">{match.awayTeam.name}</div>
+                            <div className="text-xs text-muted-foreground">{match.awayTeam.city}</div>
+                          </div>
+                          <Avatar className="h-10 w-10">
+                            <AvatarImage src={match.awayTeam.logo || undefined} />
+                            <AvatarFallback>
+                              {match.awayTeam.name.charAt(0).toUpperCase()}
+                            </AvatarFallback>
+                          </Avatar>
+                        </div>
+                      </div>
+                      {match.city && (
+                        <div className="mt-3 pt-3 border-t text-sm text-muted-foreground">
+                          📍 {match.city} {match.venue && `- ${match.venue}`}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
             </CardContent>
           </Card>
           <Card>
@@ -243,6 +348,7 @@ export default async function DashboardPage() {
           </Card>
         </div>
       </div>
+      <DashboardChatWidget />
     </div>
   )
 }

@@ -105,7 +105,14 @@ export function TeamSettingsForm({
       </div>
       <div className="space-y-2">
         <Label htmlFor="team-description">Description</Label>
-        <Input id="team-description" value={description} onChange={(e) => setDescription(e.target.value)} />
+        <textarea
+          id="team-description"
+          value={description}
+          onChange={(e) => setDescription(e.target.value)}
+          maxLength={500}
+          rows={3}
+          className="w-full p-2 border rounded-md"
+        />
       </div>
       <div className="space-y-2">
         <Label htmlFor="team-city">City</Label>

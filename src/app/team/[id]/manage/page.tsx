@@ -10,6 +10,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Users, Calendar, Settings, Trophy, UserPlus, Trash2, Crown, Shield, Inbox } from "lucide-react"
 import Link from "next/link"
 import { TeamSettingsForm } from "@/components/team-settings-form"
+import { DeleteTeamButton } from "@/components/delete-team-button"
+import { JoinRequestsTab } from "@/components/join-requests-tab"
 
 interface TeamManagePageProps {
   params: {
@@ -42,6 +44,21 @@ export default async function TeamManagePage({ params }: TeamManagePageProps) {
         where: {
           status: 'PENDING'
         }
+      },
+      joinRequests: {
+        include: {
+          playerProfile: {
+            include: {
+              user: true
+            }
+          }
+        },
+        where: {
+          status: 'PENDING'
+        },
+        orderBy: {
+          createdAt: 'desc'
+        }
       }
     }
   })
@@ -71,7 +88,7 @@ export default async function TeamManagePage({ params }: TeamManagePageProps) {
         </div>
 
         <Tabs defaultValue="roster" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-4">
+          <TabsList className="grid w-full grid-cols-5">
             <TabsTrigger value="roster">
               <Users className="mr-2 h-4 w-4" />
               Roster
@@ -79,6 +96,10 @@ export default async function TeamManagePage({ params }: TeamManagePageProps) {
             <TabsTrigger value="invitations">
               <UserPlus className="mr-2 h-4 w-4" />
               Invitations
+            </TabsTrigger>
+            <TabsTrigger value="joinRequests">
+              <UserPlus className="mr-2 h-4 w-4" />
+              Join Requests
             </TabsTrigger>
             <TabsTrigger value="matches">
               <Calendar className="mr-2 h-4 w-4" />
@@ -198,6 +219,11 @@ export default async function TeamManagePage({ params }: TeamManagePageProps) {
             </div>
           </TabsContent>
 
+          {/* Join Requests Tab */}
+          <TabsContent value="joinRequests">
+            <JoinRequestsTab joinRequests={team.joinRequests} teamId={team.id} />
+          </TabsContent>
+
           {/* Matches Tab */}
           <TabsContent value="matches">
             <div className="space-y-6">
@@ -259,11 +285,7 @@ export default async function TeamManagePage({ params }: TeamManagePageProps) {
                     <CardDescription>Irreversible actions for your team</CardDescription>
                   </CardHeader>
                   <CardContent className="space-y-4">
-                    <form action={`/api/teams/${team.id}/delete`} method="DELETE">
-                      <Button variant="destructive" className="w-full" type="submit">
-                        Delete Team
-                      </Button>
-                    </form>
+                    <DeleteTeamButton teamId={team.id} teamName={team.name} />
                   </CardContent>
                 </Card>
               )}

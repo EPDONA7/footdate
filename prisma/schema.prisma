@@ -97,6 +97,18 @@ enum DisputeStatus {
   CANCELLED
 }
 
+enum PlayerStatus {
+  AVAILABLE
+  LOOKING_FOR_TEAM
+  COMMITTED
+}
+
+enum JoinRequestStatus {
+  PENDING
+  ACCEPTED
+  REJECTED
+}
+
 model User {
   id                String      @id @default(cuid())
   clerkId           String      @unique
@@ -150,6 +162,8 @@ model User {
   following            Follow[]           @relation("Follower")
   disputeResolutions   MatchDispute[]     @relation("ResolvedBy")
   reportedDisputes     MatchDispute[]     @relation("ReportedBy")
+  globalMessages       GlobalMessage[]
+  playerProfile        PlayerProfile?
 
   @@index([username])
   @@index([city])
@@ -186,6 +200,7 @@ model Team {
   targetMatchRequests     MatchRequest[]     @relation("TargetTeam")
   matchApplications       MatchApplication[] @relation("ApplyingTeam")
   posts                   Post[]
+  joinRequests            JoinRequest[]      @relation("JoinRequests")
 
   @@index([city])
   @@index([name])
@@ -516,4 +531,53 @@ model Follow {
   @@unique([followerId, followingId])
   @@index([followerId])
   @@index([followingId])
+}
+
+model GlobalMessage {
+  id        String   @id @default(cuid())
+  userId    String
+  content   String
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([createdAt])
+}
+
+model PlayerProfile {
+  id             String       @id @default(cuid())
+  userId         String       @unique
+  status         PlayerStatus @default(AVAILABLE)
+  bio            String?
+  rank           String?
+  availability   String[]     // Array of available days/times
+  preferredPosition Position?
+  skillLevel     SkillLevel?
+  lookingForTeam Boolean      @default(false)
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  user          User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  joinRequests  JoinRequest[]
+
+  @@index([status])
+  @@index([lookingForTeam])
+  @@index([skillLevel])
+  @@index([preferredPosition])
+}
+
+model JoinRequest {
+  id          String             @id @default(cuid())
+  playerProfileId String
+  teamId      String
+  status      JoinRequestStatus  @default(PENDING)
+  createdAt   DateTime           @default(now())
+  respondedAt DateTime?
+
+  playerProfile PlayerProfile @relation(fields: [playerProfileId], references: [id], onDelete: Cascade)
+  team         Team           @relation("JoinRequests", fields: [teamId], references: [id], onDelete: Cascade)
+
+  @@index([playerProfileId])
+  @@index([teamId])
+  @@index([status])
 }

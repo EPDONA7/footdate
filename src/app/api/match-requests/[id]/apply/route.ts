@@ -4,7 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { z } from "zod";
 
 const applySchema = z.object({
-  teamId: z.string(),
+  teamId: z.string().optional(),
   message: z.string().max(500).optional(),
 });
 
@@ -30,12 +30,30 @@ export async function POST(request: NextRequest, { params }: MatchRequestContext
     }
     const { teamId, message } = applySchema.parse(body);
 
+    // If teamId is not provided, try to get user's team
+    let actualTeamId = teamId;
+    if (!actualTeamId) {
+      const userTeam = await prisma.teamMember.findFirst({
+        where: {
+          userId: user.id,
+          OR: [{ role: "OWNER" }, { role: "MANAGER" }, { role: "CAPTAIN" }]
+        },
+        include: { team: true }
+      });
+
+      if (!userTeam) {
+        return NextResponse.json({ error: "You need to be part of a team to apply for match requests" }, { status: 400 });
+      }
+
+      actualTeamId = userTeam.teamId;
+    }
+
     // Verify the team exists and the user is a member/manager of it
     const teamMember = await prisma.teamMember.findFirst({
       where: {
-        teamId: teamId,
+        teamId: actualTeamId,
         userId: user.id,
-        OR: [{ role: "OWNER" }, { role: "MANAGER" }],
+        OR: [{ role: "OWNER" }, { role: "MANAGER" }, { role: "CAPTAIN" }],
       },
       include: { team: true }
     });
@@ -66,7 +84,7 @@ export async function POST(request: NextRequest, { params }: MatchRequestContext
     }
 
     // Prevent a team from applying to its own request
-    if (matchRequest.requestingTeamId === teamId) {
+    if (matchRequest.requestingTeamId === actualTeamId) {
       return NextResponse.json({ error: "Cannot apply to your own match request." }, { status: 400 });
     }
 
@@ -75,7 +93,7 @@ export async function POST(request: NextRequest, { params }: MatchRequestContext
       where: {
         matchRequestId_applyingTeamId: {
           matchRequestId: matchRequest.id,
-          applyingTeamId: teamId,
+          applyingTeamId: actualTeamId,
         }
       }
     });
@@ -87,7 +105,7 @@ export async function POST(request: NextRequest, { params }: MatchRequestContext
     const application = await prisma.matchApplication.create({
       data: {
         matchRequestId: matchRequest.id,
-        applyingTeamId: teamId,
+        applyingTeamId: actualTeamId,
         appliedById: user.id,
         message: message || null,
       },

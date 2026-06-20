@@ -21,18 +21,32 @@ export default function NotificationsPage() {
   const [notifications, setNotifications] = useState<Notification[]>([])
   const [unreadCount, setUnreadCount] = useState(0)
   const [loading, setLoading] = useState(true)
+  const [page, setPage] = useState(1)
+  const [hasMore, setHasMore] = useState(true)
+  const limit = 20
 
   useEffect(() => {
     fetchNotifications()
-  }, [])
+    // Mark all as read when page opens
+    markAllAsReadOnLoad()
+  }, [page])
+
+  const markAllAsReadOnLoad = async () => {
+    try {
+      await fetch("/api/notifications", { method: "PATCH" })
+    } catch (error) {
+      console.error("Error marking notifications as read on load:", error)
+    }
+  }
 
   const fetchNotifications = async () => {
     try {
-      const res = await fetch("/api/notifications")
+      const res = await fetch(`/api/notifications?limit=${limit}&skip=${(page - 1) * limit}`)
       if (res.ok) {
         const data = await res.json()
-        setNotifications(data.notifications || [])
+        setNotifications(page === 1 ? data.notifications || [] : prev => [...prev, ...(data.notifications || [])])
         setUnreadCount(data.unreadCount || 0)
+        setHasMore((data.notifications || []).length === limit)
       }
     } catch (error) {
       console.error("Error fetching notifications:", error)
@@ -44,7 +58,8 @@ export default function NotificationsPage() {
   const markAllRead = async () => {
     try {
       await fetch("/api/notifications", { method: "PATCH" })
-      fetchNotifications()
+      setNotifications(prev => prev.map(n => ({ ...n, read: true })))
+      setUnreadCount(0)
     } catch (error) {
       console.error("Error marking all read:", error)
     }
@@ -58,6 +73,10 @@ export default function NotificationsPage() {
     } catch (error) {
       console.error("Error marking read:", error)
     }
+  }
+
+  const loadMore = () => {
+    setPage(prev => prev + 1)
   }
 
   return (
@@ -88,7 +107,7 @@ export default function NotificationsPage() {
           </div>
         </div>
 
-        {loading ? (
+        {loading && page === 1 ? (
           <div className="text-center py-12 text-muted-foreground">Loading notifications...</div>
         ) : notifications.length === 0 ? (
           <Card>
@@ -99,33 +118,42 @@ export default function NotificationsPage() {
             </CardContent>
           </Card>
         ) : (
-          <div className="space-y-3">
-            {notifications.map((n) => {
-              const content = (
-                <Card className={n.read ? "" : "border-primary bg-primary/5"}>
-                  <CardContent className="p-4">
-                    <div className="flex items-start justify-between gap-4">
-                      <div>
-                        <div className="font-semibold flex items-center gap-2">
-                          {n.title}
-                          {!n.read && <span className="h-2 w-2 rounded-full bg-primary" />}
-                        </div>
-                        <div className="text-sm text-muted-foreground">{n.message}</div>
-                        <div className="text-xs text-muted-foreground mt-1">
-                          {new Date(n.createdAt).toLocaleString()}
+          <>
+            <div className="space-y-3">
+              {notifications.map((n) => {
+                const content = (
+                  <Card className={n.read ? "" : "border-primary bg-primary/5"}>
+                    <CardContent className="p-4">
+                      <div className="flex items-start justify-between gap-4">
+                        <div>
+                          <div className="font-semibold flex items-center gap-2">
+                            {n.title}
+                            {!n.read && <span className="h-2 w-2 rounded-full bg-primary" />}
+                          </div>
+                          <div className="text-sm text-muted-foreground">{n.message}</div>
+                          <div className="text-xs text-muted-foreground mt-1">
+                            {new Date(n.createdAt).toLocaleString()}
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              )
-              return (
-                <div key={n.id} onClick={() => !n.read && markRead(n.id)}>
-                  {n.link ? <Link href={n.link}>{content}</Link> : content}
-                </div>
-              )
-            })}
-          </div>
+                    </CardContent>
+                  </Card>
+                )
+                return (
+                  <div key={n.id} onClick={() => !n.read && markRead(n.id)}>
+                    {n.link ? <Link href={n.link}>{content}</Link> : content}
+                  </div>
+                )
+              })}
+            </div>
+            {hasMore && (
+              <div className="mt-6 text-center">
+                <Button variant="outline" onClick={loadMore} disabled={loading}>
+                  {loading ? "Loading..." : "Load More"}
+                </Button>
+              </div>
+            )}
+          </>
         )}
       </div>
     </div>
