@@ -10,11 +10,12 @@ import Link from "next/link"
 import { DashboardChatWidget } from "@/components/dashboard-chat-widget"
 
 export default async function DashboardPage() {
-  const user = await syncUserWithClerk()
+  try {
+    const user = await syncUserWithClerk()
 
-  if (!user) {
-    redirect("/sign-in")
-  }
+    if (!user) {
+      redirect("/sign-in")
+    }
 
   // Fetch pending invitations
   const pendingInvitations = await prisma.teamInvitation.findMany({
@@ -351,4 +352,20 @@ export default async function DashboardPage() {
       <DashboardChatWidget />
     </div>
   )
+  } catch (error) {
+    console.error("Dashboard error:", error)
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="text-center">
+          <h1 className="text-2xl font-bold mb-4">Error Loading Dashboard</h1>
+          <p className="text-muted-foreground mb-4">
+            {error instanceof Error ? error.message : "An unexpected error occurred"}
+          </p>
+          <Link href="/sign-in">
+            <Button>Try Again</Button>
+          </Link>
+        </div>
+      </div>
+    )
+  }
 }

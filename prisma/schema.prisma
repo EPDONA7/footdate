@@ -201,6 +201,7 @@ model Team {
   matchApplications       MatchApplication[] @relation("ApplyingTeam")
   posts                   Post[]
   joinRequests            JoinRequest[]      @relation("JoinRequests")
+  conversations           Conversation[]
 
   @@index([city])
   @@index([name])
@@ -274,8 +275,8 @@ model Match {
   updatedAt DateTime @updatedAt
 
   // Relations
-  homeTeam     Team               @relation("HomeTeam", fields: [homeTeamId], references: [id])
-  awayTeam     Team               @relation("AwayTeam", fields: [awayTeamId], references: [id])
+  homeTeam     Team               @relation("HomeTeam", fields: [homeTeamId], references: [id], onDelete: Cascade)
+  awayTeam     Team               @relation("AwayTeam", fields: [awayTeamId], references: [id], onDelete: Cascade)
   createdBy    User?              @relation("MatchCreator", fields: [createdById], references: [id])
   participants MatchParticipant[]
   results      MatchResult[]
@@ -491,11 +492,13 @@ model Conversation {
 
   user1    User      @relation("User1", fields: [user1Id], references: [id], onDelete: Cascade)
   user2    User      @relation("User2", fields: [user2Id], references: [id], onDelete: Cascade)
+  team     Team?     @relation(fields: [teamId], references: [id], onDelete: Cascade)
   messages Message[]
 
   @@unique([user1Id, user2Id, type])
   @@index([user1Id])
   @@index([user2Id])
+  @@index([teamId])
 }
 
 model Message {

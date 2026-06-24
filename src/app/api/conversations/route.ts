@@ -57,6 +57,15 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Cannot start conversation with yourself" }, { status: 400 })
     }
 
+    // Verify the other user exists
+    const otherUser = await prisma.user.findUnique({
+      where: { id: validatedData.userId }
+    })
+
+    if (!otherUser) {
+      return NextResponse.json({ error: "User not found" }, { status: 404 })
+    }
+
     // Check if conversation already exists
     const existingConversation = await prisma.conversation.findFirst({
       where: {
@@ -91,6 +100,9 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Invalid request data" }, { status: 400 })
     }
     console.error("Error creating conversation:", error)
+    if (error instanceof Error) {
+      console.error("Error details:", error.message)
+    }
     return NextResponse.json({ error: "Failed to create conversation" }, { status: 500 })
   }
 }

@@ -31,6 +31,7 @@ interface PlayerProfile {
 export default function BrowsePlayersPage() {
   const [profiles, setProfiles] = useState<PlayerProfile[]>([])
   const [loading, setLoading] = useState(true)
+  const [userTeam, setUserTeam] = useState<any>(null)
   const [filters, setFilters] = useState({
     skillLevel: "",
     position: "",
@@ -39,6 +40,7 @@ export default function BrowsePlayersPage() {
 
   useEffect(() => {
     fetchProfiles()
+    fetchUserTeam()
   }, [filters])
 
   const fetchProfiles = async () => {
@@ -61,9 +63,44 @@ export default function BrowsePlayersPage() {
     }
   }
 
+  const fetchUserTeam = async () => {
+    try {
+      const res = await fetch("/api/user/teams")
+      if (res.ok) {
+        const data = await res.json()
+        if (data.length > 0) {
+          const ownerTeam = data.find((team: any) => team.role === "OWNER")
+          setUserTeam(ownerTeam || data[0])
+        }
+      }
+    } catch (error) {
+      console.error("Error fetching user team:", error)
+    }
+  }
+
   const sendJoinInvitation = async (playerUserId: string) => {
-    // This would be handled by team invitations system
-    alert("Team invitation feature coming soon!")
+    if (!userTeam) {
+      alert("You need to be a team owner to invite players")
+      return
+    }
+
+    try {
+      const inviteRes = await fetch(`/api/teams/${userTeam.id}/invite-by-userid`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId: playerUserId })
+      })
+
+      if (inviteRes.ok) {
+        alert(`Invitation sent to join ${userTeam.name}!`)
+      } else {
+        const error = await inviteRes.json()
+        alert(error.error || "Failed to send invitation")
+      }
+    } catch (error) {
+      console.error("Error sending invitation:", error)
+      alert("Failed to send invitation")
+    }
   }
 
   return (
@@ -196,7 +233,7 @@ export default function BrowsePlayersPage() {
                       onClick={() => sendJoinInvitation(profile.user.id)}
                     >
                       <UserPlus className="mr-2 h-4 w-4" />
-                      Invite to Team
+                      {userTeam ? `Invite to ${userTeam.name}` : "Invite to Team"}
                     </Button>
                   </div>
                 </CardContent>
